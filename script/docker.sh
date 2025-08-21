@@ -3,7 +3,7 @@
 systemUser=$(ls /home/ | head -1)
 
 # 判断是否已安装docker，如果未安装则进行安装
-DOCKER_INSTALL_URL="https://github.com/caoyanyi/lnmp/backup/docker.sh"
+DOCKER_INSTALL_URL="https://raw.githubusercontent.com/caoyanyi/lnmp/refs/heads/master/backup/docker.sh"
 MIRROR_URL="https://mirrors.ustc.edu.cn/docker-ce"
 curl -fsSL $DOCKER_INSTALL_URL  | DOWNLOAD_URL=$MIRROR_URL bash -x  -
 
