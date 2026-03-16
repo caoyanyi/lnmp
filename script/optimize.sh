@@ -46,7 +46,7 @@ sed -i '/\[Service\]/a \TimeoutStartSec=2sec' /lib/systemd/system/systemd-networ
 systemctl set-default multi-user.target
 
 # 屏蔽PCI错误，禁用IPV6
-sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT/cGRUB_CMDLINE_LINUX_DEFAULT="quiet zswap.enabled=1 pci=noaer ipv6.disable=1"' /etc/default/grub
+sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT/cGRUB_CMDLINE_LINUX_DEFAULT="quiet zswap.enabled=1 pci=noaer pcie_aspm=off ipv6.disable=1 intel_idle.max_cstate=1 i915.enable_dc=0"' /etc/default/grub
 update-grub
 
 # Preload 是一个后台运行的守护进程，它分析用户行为和频繁运行的应用，让你更快打开常用的软件。
