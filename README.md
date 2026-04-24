@@ -203,6 +203,7 @@ make test-docker
 
 当你通过 GitHub 提交（push）或发起 PR 时，会自动执行 Docker 多发行版冒烟测试。
 也可以在 GitHub 页面手动触发（`workflow_dispatch`）。
+工作流已升级为 `actions/checkout@v6` 并启用 `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`，用于规避 Node.js 20 弃用告警。
 
 ## 贡献
 
