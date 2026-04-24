@@ -14,7 +14,7 @@ all:
 	echo -e "\033[32m安装成功！\033[0m"
 
 apps:
-	# 切换清华源, 安装基础软件                                                                     ~
+	# 切换清华源, 安装基础软件
 	sudo ./script/apt.sh
 
 git:
@@ -39,6 +39,9 @@ optimize:
 
 docker:
 	sudo ./script/docker.sh
+
+test-docker:
+	./test/run-docker-smoke.sh
 
 clean:
 	echo '正在清理数据...'
