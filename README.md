@@ -179,6 +179,23 @@ tail -f /var/log/php7.4-fpm.log
 tail -f /var/log/php8.1-fpm.log
 ```
 
+
+## Docker 多发行版测试
+
+新增了 Docker 冒烟测试脚本，可在 **Ubuntu / Debian / CentOS Stream** 容器中验证脚本语法与系统识别逻辑。
+
+```bash
+# 运行多发行版测试
+./test/run-docker-smoke.sh
+
+# 或使用 Makefile
+make test-docker
+```
+
+测试内容：
+- `bash -n install.sh script/*.sh` 语法检查
+- `script/common.sh` 的 `detect_os` 发行版识别与包管理器识别
+
 ## 贡献
 
 欢迎提交 Issue 和 Pull Request 来改进这个项目。

@@ -1,0 +1,24 @@
+services:
+  ubuntu:
+    image: ubuntu:24.04
+    container_name: lnmp-test-ubuntu
+    command: ["bash", "-lc", "sleep infinity"]
+    working_dir: /workspace/lnmp
+    volumes:
+      - ../:/workspace/lnmp
+
+  debian:
+    image: debian:12
+    container_name: lnmp-test-debian
+    command: ["bash", "-lc", "sleep infinity"]
+    working_dir: /workspace/lnmp
+    volumes:
+      - ../:/workspace/lnmp
+
+  centos:
+    image: quay.io/centos/centos:stream9
+    container_name: lnmp-test-centos
+    command: ["bash", "-lc", "sleep infinity"]
+    working_dir: /workspace/lnmp
+    volumes:
+      - ../:/workspace/lnmp
