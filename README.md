@@ -196,6 +196,14 @@ make test-docker
 - `bash -n install.sh script/*.sh` 语法检查
 - `script/common.sh` 的 `detect_os` 发行版识别与包管理器识别
 
+
+### GitHub 提交后自动测试
+
+仓库已新增 GitHub Actions 工作流：`.github/workflows/docker-smoke-test.yml`。
+
+当你通过 GitHub 提交（push）或发起 PR 时，会自动执行 Docker 多发行版冒烟测试。
+也可以在 GitHub 页面手动触发（`workflow_dispatch`）。
+
 ## 贡献
 
 欢迎提交 Issue 和 Pull Request 来改进这个项目。
