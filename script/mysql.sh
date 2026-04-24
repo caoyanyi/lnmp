@@ -1,16 +1,21 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-mysqlPwd=$1
-runDir=$(pwd)
+mysql_pwd=${1:-}
+if [[ -z "${mysql_pwd}" ]]; then
+    echo '错误：请传入 MySQL root 密码' >&2
+    exit 1
+fi
+
 apt install mariadb-server -y -qq
 
-# mariadb设置密码登录
 echo '正在初始化MySQL...'
 
-sed -i "s/%pwd%/${mysqlPwd}/g" backup/init_mysql.sql
-mysql < backup/init_mysql.sql
+tmp_sql=$(mktemp)
+sed "s/%pwd%/${mysql_pwd}/g" backup/init_mysql.sql > "${tmp_sql}"
+mysql < "${tmp_sql}"
+rm -f "${tmp_sql}"
 
-# 开启远程连接 MySQL
-sed -i "s/bind-address\(\s*\)=.*/bind-address\1= 0.0.0.0/g" /etc/mysql/mariadb.conf.d/50-server.cnf
+sed -i 's/bind-address\(\s*\)=.*/bind-address\1= 0.0.0.0/g' /etc/mysql/mariadb.conf.d/50-server.cnf
 
 service mysql restart
