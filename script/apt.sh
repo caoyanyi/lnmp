@@ -1,35 +1,51 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-apt update -y -qq
-apt install --reinstall ca-certificates -y -qq
+# shellcheck source=script/common.sh
+source "$(dirname "$0")/common.sh"
+detect_os
 
-echo '正在切换清华源...'
-while IFS= read -r file; do
-    sed -i 's@http://.*archive.ubuntu.com@https://mirrors.tuna.tsinghua.edu.cn@g' "$file"
-    sed -i 's@http://.*security.ubuntu.com@https://mirrors.tuna.tsinghua.edu.cn@g' "$file"
-done < <(find /etc/apt/ -type f)
+configure_china_mirror_if_needed() {
+    if ! is_debian_family; then
+        return 0
+    fi
 
-if [[ -f /etc/needrestart/needrestart.conf ]]; then
-    sed -i "/^\#\$nrconf{restart}/c\$nrconf{restart} = 'a';" /etc/needrestart/needrestart.conf
-fi
+    echo '正在切换清华源...'
+    while IFS= read -r file; do
+        sed -i 's@http://.*archive.ubuntu.com@https://mirrors.tuna.tsinghua.edu.cn@g' "$file"
+        sed -i 's@http://.*security.ubuntu.com@https://mirrors.tuna.tsinghua.edu.cn@g' "$file"
+        sed -i 's@http://deb.debian.org@https://mirrors.tuna.tsinghua.edu.cn@g' "$file"
+    done < <(find /etc/apt/ -type f)
 
-echo -e '\033[31m正在更新软件，过程较长，请耐心等待，不要退出!\033[0m'
-apt update -y -qq
-apt upgrade -y -qq
-apt autoremove -y -qq
-apt autoclean -y -qq
+    if [[ -f /etc/needrestart/needrestart.conf ]]; then
+        sed -i "/^\#\$nrconf{restart}/c\$nrconf{restart} = 'a';" /etc/needrestart/needrestart.conf
+    fi
+}
 
-echo '正在安装基础软件...'
-apt install -y -qq \
-    wget cron grub-pc aptitude ctags cconv exuberant-ctags nfs-common jq \
-    zip lrzsz net-tools zlib1g-dev git subversion inotify-tools gcc g++ \
-    composer software-properties-common nginx mariadb-server python-is-python3
+install_base_packages() {
+    if is_debian_family; then
+        pkg_install ca-certificates
+        pkg_install wget cron git subversion inotify-tools gcc g++ jq zip net-tools
+        pkg_install zlib1g-dev nginx mariadb-server software-properties-common
+        pkg_install python3 python-is-python3 lrzsz
+    else
+        pkg_install ca-certificates
+        pkg_install wget cronie git subversion inotify-tools gcc gcc-c++ jq zip net-tools
+        pkg_install zlib-devel nginx mariadb-server
+        pkg_install python3 which tar
+    fi
+}
 
-if ! command -v snap >/dev/null 2>&1; then
-    apt install -y -qq snapd
-fi
+main() {
+    configure_china_mirror_if_needed
 
-if ! command -v task >/dev/null 2>&1; then
-    snap install task --classic
-fi
+    echo -e '\033[31m正在更新软件，过程较长，请耐心等待，不要退出!\033[0m'
+    pkg_update
+    pkg_upgrade
+
+    echo '正在安装基础软件...'
+    install_base_packages
+    pkg_remove_unused
+}
+
+main "$@"

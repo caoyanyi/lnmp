@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=script/common.sh
+source "$(dirname "$0")/common.sh"
+detect_os
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
@@ -16,35 +20,6 @@ setup_php_run_dir() {
     install -d -m 755 /var/run/php
 }
 
-update_package_list() {
-    echo -e "${GREEN}正在更新系统包列表...${NC}"
-    apt-get update -qq
-}
-
-setup_mirror() {
-    shopt -s nullglob
-    local files=(/etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources)
-    local file
-    for file in "${files[@]}"; do
-        sed -i 's/ppa.launchpadcontent.net/launchpad.proxy.ustclug.org/g' "$file"
-    done
-    shopt -u nullglob
-}
-
-install_php_version() {
-    local php_ver=$1
-    local packages=(
-        "php${php_ver}" "php${php_ver}-fpm" "php${php_ver}-gd" "php${php_ver}-cgi"
-        "php${php_ver}-mysql" "php${php_ver}-xml" "php${php_ver}-yaml" "php${php_ver}-mbstring"
-        "php${php_ver}-mcrypt" "php${php_ver}-common" "php${php_ver}-dev" "php${php_ver}-curl"
-        "php${php_ver}-zip" "php${php_ver}-ldap" "php${php_ver}-intl" "php${php_ver}-xdebug"
-    )
-
-    echo -e "${GREEN}正在安装PHP ${php_ver} 和相关扩展...${NC}"
-    apt install -y -qq "${packages[@]}" || true
-    apt install -y -qq "php${php_ver}-json" || true
-}
-
 replace_or_append() {
     local key=$1 value=$2 file=$3
     if grep -qE "^;?${key}[[:space:]]*=" "$file"; then
@@ -55,9 +30,8 @@ replace_or_append() {
 }
 
 configure_php_fpm() {
-    local php_ver=$1
-    local php_ini="/etc/php/${php_ver}/fpm/php.ini"
-    local pool_conf="/etc/php/${php_ver}/fpm/pool.d/www.conf"
+    local php_ini=$1
+    local pool_conf=$2
 
     replace_or_append 'display_errors' 'On' "$php_ini"
     replace_or_append 'memory_limit' '1024M' "$php_ini"
@@ -70,6 +44,55 @@ configure_php_fpm() {
     replace_or_append 'pm.max_spare_servers' '128' "$pool_conf"
 }
 
+install_php_debian() {
+    local php_ver=$1
+    pkg_install software-properties-common
+    add-apt-repository ppa:ondrej/php -y
+    pkg_update
+
+    local packages=(
+        "php${php_ver}" "php${php_ver}-fpm" "php${php_ver}-gd" "php${php_ver}-cgi"
+        "php${php_ver}-mysql" "php${php_ver}-xml" "php${php_ver}-yaml" "php${php_ver}-mbstring"
+        "php${php_ver}-mcrypt" "php${php_ver}-common" "php${php_ver}-dev" "php${php_ver}-curl"
+        "php${php_ver}-zip" "php${php_ver}-ldap" "php${php_ver}-intl" "php${php_ver}-xdebug"
+    )
+    pkg_install "${packages[@]}" || true
+    pkg_install "php${php_ver}-json" || true
+
+    local php_ini="/etc/php/${php_ver}/fpm/php.ini"
+    local pool_conf="/etc/php/${php_ver}/fpm/pool.d/www.conf"
+    if [[ -f "$php_ini" && -f "$pool_conf" ]]; then
+        configure_php_fpm "$php_ini" "$pool_conf"
+        restart_service "php${php_ver}-fpm"
+    fi
+}
+
+install_php_rhel() {
+    local php_ver=$1
+    pkg_install epel-release || true
+
+    if [[ -f /etc/yum.repos.d/remi.repo ]]; then
+        :
+    else
+        local remi_rpm="https://rpms.remirepo.net/enterprise/remi-release-$(rpm -E '%{rhel}').rpm"
+        pkg_install "${remi_rpm}" || true
+    fi
+
+    if command_exists dnf; then
+        dnf module reset php -y -q || true
+        dnf module enable "php:remi-${php_ver//./}" -y -q || true
+    fi
+
+    pkg_install php php-fpm php-cli php-common php-mysqlnd php-gd php-xml php-mbstring php-intl php-pecl-zip || true
+
+    local php_ini='/etc/php.ini'
+    local pool_conf='/etc/php-fpm.d/www.conf'
+    if [[ -f "$php_ini" && -f "$pool_conf" ]]; then
+        configure_php_fpm "$php_ini" "$pool_conf"
+    fi
+    restart_service php-fpm
+}
+
 main() {
     check_params "$@"
 
@@ -78,16 +101,13 @@ main() {
     local php_versions=()
 
     setup_php_run_dir
-    add-apt-repository ppa:ondrej/php -y
-    setup_mirror
-    update_package_list
 
     case "$user_type" in
         tester)
-            php_versions=(5.6 7.0 7.1 7.2 7.3 7.4 8.1 8.2 8.3)
+            php_versions=(5.6 7.0 7.1 7.2 7.3 7.4 8.1)
             ;;
         dev)
-            php_versions=(5.6 7.4 8.1)
+            php_versions=(7.4 8.1)
             ;;
         *)
             php_versions=("$php_version")
@@ -96,18 +116,16 @@ main() {
 
     local php_ver
     for php_ver in "${php_versions[@]}"; do
-        install_php_version "$php_ver"
-
-        if [[ -d "/etc/php/${php_ver}/fpm" ]]; then
-            configure_php_fpm "$php_ver"
-            service "php${php_ver}-fpm" restart
+        echo -e "${GREEN}正在安装PHP ${php_ver}...${NC}"
+        if is_debian_family; then
+            install_php_debian "$php_ver"
         else
-            echo -e "${RED}警告：PHP ${php_ver} FPM配置目录不存在，已跳过配置。${NC}" >&2
+            install_php_rhel "$php_ver"
         fi
     done
 
     if [[ -x /usr/bin/php7.4 ]]; then
-        update-alternatives --set php /usr/bin/php7.4
+        update-alternatives --set php /usr/bin/php7.4 || true
     fi
 
     echo -e "${GREEN}PHP安装和配置完成！${NC}"

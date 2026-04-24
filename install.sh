@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=script/common.sh
+source "$(dirname "$0")/script/common.sh"
+
+detect_os
+
 RED='\033[31m'
 GREEN='\033[32m'
 RESET='\033[0m'
@@ -11,7 +16,7 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 declare -A config=(
-    ["userType"]=""
+    ["userType"]="dev"
     ["phpVersion"]="8.1"
     ["mysqlPwd"]="123456"
 )
@@ -33,6 +38,7 @@ run_step() {
 }
 
 install_components() {
+    echo -e "${GREEN}检测到系统: ${OS_ID} ${OS_VERSION_ID} (pkg: ${PKG_MGR})${RESET}"
     run_step "正在安装基础软件..." ./script/apt.sh
     run_step "正在配置Git..." ./script/git.sh
     run_step "正在安装配置Nginx..." ./script/nginx.sh
@@ -42,19 +48,10 @@ install_components() {
     run_step "正在安装Docker..." ./script/docker.sh
 }
 
-cleanup() {
-    echo -e "${GREEN}安装完成，保留当前目录以便后续排障。${RESET}"
-}
-
-show_success() {
-    echo -e "${GREEN}安装成功！${RESET}"
-}
-
 main() {
     validate_config
     install_components
-    cleanup
-    show_success
+    echo -e "${GREEN}安装成功！${RESET}"
 }
 
 main "$@"

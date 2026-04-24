@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-system_user=$(find /home -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | head -n 1)
+# shellcheck source=script/common.sh
+source "$(dirname "$0")/common.sh"
+detect_os
 
-apt install -y -qq git
+system_user=$(first_home_user || true)
+pkg_install git
 
 echo '正在初始化Git设置...'
 
